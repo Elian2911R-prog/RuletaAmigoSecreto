@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amigo Secreto · Organizador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #0f172a; --texto: #f8fafc; --suave: #cbd5e1; --acento: #ffd166;
+    --rosa: #ef476f; --naranja: #f78c6b; --tarjeta: rgba(255,255,255,0.08); --borde: rgba(255,255,255,0.16);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Fredoka', system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--texto);
+    background: radial-gradient(circle at 50% -10%, #3b2f8f 0%, #1e1b4b 35%, var(--fondo) 75%);
+    background-attachment: fixed;
+  }
+  main { max-width: 700px; margin: 0 auto; padding: 28px 16px 60px; }
+  h1 { font-size: 1.8rem; margin: 0 0 6px; }
+  h2 { font-size: 1.2rem; margin: 30px 0 10px; color: var(--acento); }
+  p { line-height: 1.5; color: var(--suave); }
+  a { color: var(--acento); }
+  code { background: rgba(0,0,0,.3); padding: 2px 6px; border-radius: 6px; color: var(--acento); }
+  label { display: block; font-weight: 600; margin: 16px 0 6px; }
+  input, textarea, select {
+    font: inherit; width: 100%; padding: 10px 12px; border-radius: 12px; color: var(--texto);
+    border: 1.5px solid var(--borde); background: rgba(0,0,0,.25); outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--acento); }
+  textarea { resize: vertical; min-height: 160px; font-family: ui-monospace, Consolas, monospace; font-size: .95rem; }
+  select option { color: #111; }
+  .fila { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
+  .fila > div { flex: 1 1 180px; }
+  .contador { font-size: .9rem; color: var(--suave); margin-top: 6px; }
+  .boton {
+    font: inherit; font-size: 1.05rem; font-weight: 700; cursor: pointer; border: none; color: #fff;
+    padding: 12px 26px; border-radius: 999px; background: linear-gradient(135deg, var(--rosa), var(--naranja));
+    box-shadow: 0 8px 24px rgba(239,71,111,.35); margin-top: 18px;
+  }
+  .boton:disabled { opacity: .55; cursor: default; }
+  .boton.secundario { background: transparent; border: 1.5px solid var(--borde); box-shadow: none; color: var(--suave); font-size: .95rem; padding: 8px 16px; margin: 8px 8px 0 0; }
+  .boton.mini { font-size: .85rem; padding: 5px 12px; margin: 0; }
+  .error { color: #fda4af; min-height: 1.4em; }
+  .tabla-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; background: var(--tarjeta); border-radius: 14px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  th { color: var(--acento); font-weight: 600; }
+  td.pin { font-family: ui-monospace, Consolas, monospace; font-size: 1.15rem; letter-spacing: 3px; }
+  td small { display: block; color: var(--suave); font-size: .82rem; }
+  .enlace {
+    display: flex; gap: 8px; align-items: center; background: rgba(0,0,0,.3); border-radius: 12px; padding: 10px 12px;
+    font-family: ui-monospace, Consolas, monospace; font-size: .9rem; word-break: break-all;
+  }
+  .enlace span { flex: 1; }
+  .enlace button { margin: 0; white-space: nowrap; }
+  .aviso { background: rgba(255,209,102,.12); border: 1.5px solid rgba(255,209,102,.4); border-radius: 12px; padding: 12px 14px; }
+  .progreso { font-size: 1.1rem; font-weight: 600; margin: 0 0 12px; color: var(--texto); }
+  .listo { color: #86efac; font-weight: 600; }
+  .pendiente { color: var(--suave); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ===== Modo crear ===== -->
+  <section id="crear">
+    <h1>🎁 Amigo Secreto · Organizador</h1>
+    <p>Escribe los nombres y crea el juego. El sorteo se hace aquí, en tu navegador, y se guarda cifrado
+       con el PIN de cada persona: ni siquiera tú verás quién le tocó a quién. 🤫</p>
+
+    <form id="form">
+      <label for="evento">Nombre del evento</label>
+      <input id="evento" value="Amigo Secreto 2026" maxlength="60">
+
+      <label for="nombres">Participantes (uno por línea)</label>
+      <textarea id="nombres" placeholder="Ana&#10;Carlos&#10;Daniela&#10;…"></textarea>
+      <div class="contador" id="contador">0 participantes</div>
+
+      <div class="fila">
+        <div>
+          <label for="largo">Largo del PIN de invitación</label>
+          <select id="largo">
+            <option value="4">4 dígitos</option>
+            <option value="6" selected>6 dígitos</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="boton" type="submit" id="generar">Crear juego</button>
+      <p class="error" id="error"></p>
+    </form>
+  </section>
+
+  <!-- ===== Modo estado ===== -->
+  <section id="estado" hidden>
+    <h1>🎁 <span id="titulo-evento"></span></h1>
+    <p>Panel del organizador · <a href="admin.html" id="nuevo">crear otro juego</a></p>
+
+    <h2>1. Enlace del juego (compártelo con todos)</h2>
+    <div class="enlace"><span id="enlace-juego"></span><button class="boton secundario" type="button" id="copiar-juego">Copiar</button></div>
+
+    <h2>2. PIN de invitación de cada persona (envíalos en privado)</h2>
+    <p id="sin-pines" hidden>Los PIN solo se muestran en el navegador donde se creó el juego. Si los perdiste, crea un juego nuevo.</p>
+    <div class="tabla-scroll">
+      <table id="tabla-pines"><thead><tr><th>Nombre</th><th>PIN</th></tr></thead><tbody></tbody></table>
+    </div>
+    <button class="boton secundario" type="button" id="copiar-pines">Copiar lista de PIN</button>
+    <p>Cada persona puede cambiar ese PIN por uno personal al entrar. Si lo hace, el de invitación deja de funcionar.</p>
+
+    <h2>3. Estado</h2>
+    <p class="progreso" id="progreso"></p>
+    <div class="tabla-scroll">
+      <table id="tabla-estado">
+        <thead><tr><th>Nombre</th><th>Ruleta</th><th>PIN</th><th id="th-reiniciar"></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p id="nota-reinicio">Si alguien olvida su PIN personal, pulsa <b>Reiniciar</b>: vuelve a valer su PIN de invitación
+       y la persona podrá crear uno nuevo. Ella verá la fecha del reinicio.</p>
+    <p id="sin-clave" class="aviso" hidden>Para poder reiniciar PIN abre este panel desde tu <b>enlace de organizador</b> (el que incluye la clave).</p>
+    <p class="error" id="error-estado"></p>
+
+    <h2>Tu enlace de organizador</h2>
+    <p>Guárdalo y no lo compartas: incluye la clave que permite reiniciar PIN.</p>
+    <div class="enlace"><span id="enlace-admin"></span><button class="boton secundario" type="button" id="copiar-admin">Copiar</button></div>
+    <p class="aviso">⚠️ Guarda los PIN ahora: no quedan en la nube y no se pueden recuperar después.</p>
+  </section>
+
+</main>
+
+<script src="firebase-config.js"></script>
+<script src="common.js"></script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js';
+import { getFirestore, doc, getDoc, writeBatch, collection, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
+
+const db = getFirestore(initializeApp(window.FIREBASE_CONFIG));
+const $ = (s) => document.querySelector(s);
+const ordenar = (lista) => [...lista].sort((a, b) => a.localeCompare(b, 'es'));
+const claveLocal = (id) => 'amigo-secreto-admin:' + id;
+const fechaBonita = (ts) => ts && ts.toDate ? ts.toDate().toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' }) : '';
+
+// ============ Modo crear ============
+function leerNombres() {
+  return $('#nombres').value.split('\n').map((n) => n.trim()).filter(Boolean);
+}
+
+$('#nombres').addEventListener('input', () => {
+  const n = leerNombres().length;
+  $('#contador').textContent = n + (n === 1 ? ' participante' : ' participantes');
+});
+
+function pinAleatorio(largo) {
+  let p = '';
+  for (let i = 0; i < largo; i++) p += AS.aleatorio(10);
+  return p;
+}
+
+// Sorteo: mezcla los nombres y forma un ciclo (cada uno regala al siguiente).
+// Así nadie se regala a sí mismo y todos reciben exactamente un regalo.
+function sortear(nombres) {
+  const orden = [...nombres];
+  for (let i = orden.length - 1; i > 0; i--) {
+    const j = AS.aleatorio(i + 1);
+    [orden[i], orden[j]] = [orden[j], orden[i]];
+  }
+  const amigoDe = new Map();
+  orden.forEach((n, i) => amigoDe.set(n, orden[(i + 1) % orden.length]));
+  return amigoDe;
+}
+
+$('#form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const error = $('#error');
+  error.textContent = '';
+
+  const nombres = leerNombres();
+  const repetidos = nombres.filter((n, i) => nombres.findIndex((m) => m.toLowerCase() === n.toLowerCase()) !== i);
+  if (nombres.length < 3) { error.textContent = 'Necesitas al menos 3 participantes.'; return; }
+  if (nombres.length > 200) { error.textContent = 'Máximo 200 participantes.'; return; }
+  if (repetidos.length) { error.textContent = 'Hay nombres repetidos: ' + [...new Set(repetidos)].join(', '); return; }
+  if (nombres.some((n) => n.length > 40 || n.includes('/'))) { error.textContent = 'Usa nombres de máximo 40 caracteres y sin "/".'; return; }
+
+  const boton = $('#generar');
+  boton.disabled = true;
+  boton.textContent = 'Creando…';
+
+  try {
+    const largo = Number($('#largo').value);
+    const id = AS.idAleatorio(8);
+    const claveAdmin = AS.hexAleatorio(16); // va en el enlace de organizador; permite reiniciar PIN
+    const nombreEvento = $('#evento').value.trim() || 'Amigo Secreto';
+    const ordenados = ordenar(nombres);
+    const amigoDe = sortear(nombres);
+
+    // PIN únicos por persona
+    const pines = {};
+    const usados = new Set();
+    for (const n of nombres) {
+      let p;
+      do { p = pinAleatorio(largo); } while (usados.has(p));
+      usados.add(p);
+      pines[n] = p;
+    }
+
+    // Todo se guarda en una sola operación: el evento, las asignaciones cifradas y el control de cada persona.
+    const lote = writeBatch(db);
+    lote.set(doc(db, 'eventos', id), {
+      nombre: nombreEvento,
+      creado: serverTimestamp(),
+      participantes: ordenados,
+      huellaAdmin: await AS.sha256hex(claveAdmin),
+    });
+    for (const n of ordenados) {
+      const nonceGiro = AS.hexAleatorio(16);   // para marcar "ya giró"
+      const nonceCambio = AS.hexAleatorio(16); // para cambiar el PIN
+      const { token, clave } = await AS.derivar(pines[n], AS.salt(id, n));
+      const cifrado = await AS.cifrar(JSON.stringify({ amigo: amigoDe.get(n), nonceGiro, nonceCambio }), clave);
+      lote.set(doc(db, 'eventos', id, 'asignaciones', token), { nombre: n, tipo: 'invitacion', ...cifrado });
+      lote.set(doc(db, 'eventos', id, 'control', n), {
+        activo: 'invitacion',
+        huellaGiro: await AS.sha256hex(nonceGiro),
+        huellaCambio: await AS.sha256hex(nonceCambio),
+      });
+    }
+    await AS.conTiempo(lote.commit(), 20000);
+
+    // Los PIN y la clave solo quedan en este navegador (nunca en la nube)
+    try { localStorage.setItem(claveLocal(id), JSON.stringify({ pines, clave: claveAdmin })); } catch {}
+
+    location.hash = 'e=' + id + '&k=' + claveAdmin;
+  } catch (err) {
+    error.textContent = err.message === 'sin-conexion' ? AS.MENSAJE_SIN_CONEXION
+      : err.code === 'permission-denied' ? 'La base de datos rechazó la escritura. Revisa que las reglas de Firestore estén publicadas.'
+      : 'No se pudo crear: ' + err.message;
+  } finally {
+    boton.disabled = false;
+    boton.textContent = 'Crear juego';
+  }
+});
+
+// ============ Modo estado ============
+let detener = [];
+
+async function mostrarEstado(id, claveAdmin) {
+  detener.forEach((d) => d());
+  detener = [];
+  $('#crear').hidden = true;
+  $('#estado').hidden = false;
+
+  let snap;
+  try {
+    snap = await AS.conTiempo(getDoc(doc(db, 'eventos', id)), 15000);
+  } catch (err) {
+    $('#estado').innerHTML = '<h1>🎁 Organizador</h1><p>' + AS.MENSAJE_SIN_CONEXION + '</p>';
+    return;
+  }
+  if (!snap.exists()) {
+    $('#estado').innerHTML = '<h1>🎁 Organizador</h1><p>No existe ningún juego con este enlace. <a href="admin.html">Crear uno nuevo</a>.</p>';
+    return;
+  }
+  const evento = snap.data();
+  const participantes = ordenar(evento.participantes);
+  $('#titulo-evento').textContent = evento.nombre;
+
+  // Datos guardados en este navegador al crear el juego (PIN y clave)
+  let local = {};
+  try { local = JSON.parse(localStorage.getItem(claveLocal(id))) || {}; } catch {}
+  const pines = local.pines || null;
+  claveAdmin = claveAdmin || local.clave || '';
+
+  const enlaceJuego = AS.urlBase() + '#e=' + id;
+  const enlaceAdmin = AS.urlBase() + 'admin.html#e=' + id + (claveAdmin ? '&k=' + claveAdmin : '');
+  $('#enlace-juego').textContent = enlaceJuego;
+  $('#enlace-admin').textContent = enlaceAdmin;
+  $('#copiar-juego').onclick = () => copiar(enlaceJuego, $('#copiar-juego'));
+  $('#copiar-admin').onclick = () => copiar(enlaceAdmin, $('#copiar-admin'));
+
+  // PIN de invitación (solo si se crearon en este navegador)
+  const cuerpoPines = $('#tabla-pines tbody');
+  cuerpoPines.innerHTML = '';
+  if (pines) {
+    for (const n of participantes) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td></td><td class="pin"></td>';
+      tr.children[0].textContent = n;
+      tr.children[1].textContent = pines[n] || '—';
+      cuerpoPines.appendChild(tr);
+    }
+    const texto = participantes.map((n) => n + ': ' + pines[n]).join('\n');
+    $('#copiar-pines').onclick = () => copiar(texto, $('#copiar-pines'));
+  }
+  $('#sin-pines').hidden = !!pines;
+  $('#tabla-pines').hidden = !pines;
+  $('#copiar-pines').hidden = !pines;
+
+  // Estado en vivo: giros + estado de PIN
+  $('#sin-clave').hidden = !!claveAdmin;
+  $('#nota-reinicio').hidden = !claveAdmin;
+  $('#th-reiniciar').textContent = claveAdmin ? 'Reiniciar PIN' : '';
+  const cuerpoEstado = $('#tabla-estado tbody');
+  let giros = {};
+  let estadoPines = {};
+
+  function pintar() {
+    cuerpoEstado.innerHTML = '';
+    let listos = 0;
+    for (const n of participantes) {
+      const g = giros[n];
+      const p = estadoPines[n] || {};
+      if (g) listos++;
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td></td><td></td><td></td><td></td>';
+      tr.children[0].textContent = n;
+      tr.children[1].textContent = g ? '✅ Ya giró' : '⏳ Pendiente';
+      tr.children[1].className = g ? 'listo' : 'pendiente';
+      if (g && g.fecha) tr.children[1].insertAdjacentHTML('beforeend', '<small></small>'), tr.children[1].lastChild.textContent = fechaBonita(g.fecha);
+      tr.children[2].textContent = p.personal ? '🔒 Personal' : '✉️ De invitación';
+      if (p.personal && p.cambiado) tr.children[2].insertAdjacentHTML('beforeend', '<small></small>'), tr.children[2].lastChild.textContent = 'cambiado ' + fechaBonita(p.cambiado);
+      if (!p.personal && p.reiniciado) tr.children[2].insertAdjacentHTML('beforeend', '<small></small>'), tr.children[2].lastChild.textContent = 'reiniciado ' + fechaBonita(p.reiniciado);
+      if (claveAdmin) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'boton secundario mini';
+        b.textContent = '🔄 Reiniciar';
+        b.disabled = !p.personal;
+        b.title = p.personal ? 'Vuelve a valer el PIN de invitación' : 'Ya está con el PIN de invitación';
+        b.onclick = () => reiniciarPin(id, n, claveAdmin, b);
+        tr.children[3].appendChild(b);
+      }
+      cuerpoEstado.appendChild(tr);
+    }
+    $('#progreso').textContent = listos + ' de ' + participantes.length + ' ya giraron' + (listos === participantes.length ? ' 🎉' : '');
+  }
+
+  detener.push(onSnapshot(collection(db, 'eventos', id, 'estado'), (res) => {
+    giros = {};
+    res.forEach((d) => { giros[d.id] = d.data(); });
+    pintar();
+  }));
+  detener.push(onSnapshot(collection(db, 'eventos', id, 'pines'), (res) => {
+    estadoPines = {};
+    res.forEach((d) => { estadoPines[d.id] = d.data(); });
+    pintar();
+  }));
+}
+
+async function reiniciarPin(id, nombre, claveAdmin, boton) {
+  if (!confirm('¿Reiniciar el PIN de ' + nombre + '?\n\nSu PIN personal dejará de funcionar y volverá a valer el de invitación. ' + nombre + ' verá la fecha del reinicio.')) return;
+  boton.disabled = true;
+  $('#error-estado').textContent = '';
+  try {
+    const lote = writeBatch(db);
+    lote.update(doc(db, 'eventos', id, 'control', nombre), { activo: 'invitacion', reiniciado: serverTimestamp(), pruebaAdmin: claveAdmin });
+    lote.set(doc(db, 'eventos', id, 'pines', nombre), { personal: false, reiniciado: serverTimestamp() });
+    await AS.conTiempo(lote.commit(), 20000);
+  } catch (err) {
+    $('#error-estado').textContent = err.code === 'permission-denied'
+      ? 'No se pudo reiniciar: la clave del enlace de organizador no es válida.'
+      : 'No se pudo reiniciar: ' + err.message;
+    boton.disabled = false;
+  }
+}
+
+async function copiar(texto, boton) {
+  try { await navigator.clipboard.writeText(texto); } catch {
+    const ta = document.createElement('textarea');
+    ta.value = texto; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  const original = boton.textContent;
+  boton.textContent = '¡Copiado!';
+  setTimeout(() => (boton.textContent = original), 2000);
+}
+
+// ============ Arranque ============
+function arrancar() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const id = params.get('e');
+  if (id) mostrarEstado(id, params.get('k') || '');
+  else location.reload();
+}
+if (location.hash.includes('e=')) arrancar();
+window.addEventListener('hashchange', arrancar);
+</script>
+</body>
+</html>
